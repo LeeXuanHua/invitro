@@ -690,7 +690,8 @@ func (d *Driver) RunExperiment(iatOnly bool, generated bool) {
 	case "OpenWhisk":
 		DeployFunctionsOpenWhisk(d.Configuration.Functions)
 	case "AWSLambda":
-		DeployFunctionsAWSLambda(d.Configuration.Functions)
+		DeployFunctionsAWSLambda(d.Configuration.Functions,
+			d.Configuration.LoaderConfiguration.YAMLSelector)
 	case "Dirigent":
 		DeployDirigent(d.Configuration.Functions)
 	default:

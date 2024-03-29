@@ -40,7 +40,7 @@ type Serverless struct {
 	Service          string                  `yaml:"service"`
 	FrameworkVersion string                  `yaml:"frameworkVersion"`
 	Provider         slsProvider             `yaml:"provider"`
-	Package          slsPackage              `yaml:"package"`
+	Package          slsPackage              `yaml:"package,omitempty"`
 	Functions        map[string]*slsFunction `yaml:"functions"`
 }
 
@@ -50,6 +50,18 @@ type slsProvider struct {
 	Stage            string `yaml:"stage"`
 	Region           string `yaml:"region"`
 	VersionFunctions bool   `yaml:"versionFunctions"`
+	ECR              slsECR `yaml:"ecr,omitempty"`
+}
+
+type slsECR struct {
+	ScanOnPush bool                `yaml:"scanOnPush"`
+	Images     map[string]slsImage `yaml:"images"`
+}
+
+type slsImage struct {
+	Path     string `yaml:"path"`
+	File     string `yaml:"file"`
+	Platform string `yaml:"platform"`
 }
 
 type slsPackage struct {
@@ -57,11 +69,13 @@ type slsPackage struct {
 }
 
 type slsFunction struct {
-	Handler     string `yaml:"handler"`
-	Description string `yaml:"description"`
+	Handler     string `yaml:"handler,omitempty"`
+	Image       string `yaml:"image,omitempty"`
+	Description string `yaml:"description,omitempty"`
 	Name        string `yaml:"name"`
 	Url         bool   `yaml:"url"`
-	Timeout     string `yaml:"timeout"`
+	Timeout     int32  `yaml:"timeout,omitempty"`
+	MemorySize  int32  `yaml:"memorySize,omitempty"`
 }
 
 // CreateHeader sets the fields Service, FrameworkVersion, and Provider
@@ -74,6 +88,10 @@ func (s *Serverless) CreateHeader(index int, provider string) {
 		Stage:            "dev",
 		Region:           "us-east-1",
 		VersionFunctions: false,
+		ECR: slsECR{
+			ScanOnPush: false,
+			Images:     map[string]slsImage{},
+		},
 	}
 	s.Functions = map[string]*slsFunction{}
 }
@@ -94,23 +112,45 @@ func (s *Serverless) AddPackagePattern(pattern string) {
 	}
 }
 
+// AddImageConfig adds the slsImage configuration for container deployment as long as the imageName does not already exist in Provider.ECR.Images
+func (s *Serverless) AddImageConfig(imageName string, path string, file string, platform string) {
+	if _, ok := s.Provider.ECR.Images[imageName]; !ok {
+		s.Provider.ECR.Images[imageName] = slsImage{Path: path, File: file, Platform: platform}
+	}
+}
+
 // AddFunctionConfig adds the function configuration for serverless.com deployment
-func (s *Serverless) AddFunctionConfig(function *common.Function, provider string) {
+func (s *Serverless) AddFunctionConfig(function *common.Function, provider string, imageName string) {
 
 	// Extract 0 from trace-func-0-2642643831809466437 by splitting on "-"
 	shortName := strings.Split(function.Name, "-")[2]
 
 	var handler string
-	var timeout string
+	var image string
+	var timeout int32
+	var memorysize int32
 	switch provider {
 	case "aws":
-		handler = "bootstrap"
-		timeout = "900"
+		if imageName == "" {
+			handler = "server/trace-func-go/aws/trace_func"
+		} else {
+			image = imageName
+		}
+		timeout = 900     // Maximum Lambda execution time of 15 min
+		memorysize = 1024 // Default value by Serverless.com framework
 	default:
 		log.Fatalf("AddFunctionConfig could not recognize provider %s", provider)
 	}
 
-	f := &slsFunction{Handler: handler, Description: "", Name: shortName, Url: true, Timeout: timeout}
+	f := &slsFunction{
+		Handler:     handler,
+		Image:       image,
+		Description: "",
+		Name:        shortName,
+		Url:         true,
+		Timeout:     timeout,
+		MemorySize:  memorysize,
+	}
 	s.Functions[function.Name] = f
 }
 

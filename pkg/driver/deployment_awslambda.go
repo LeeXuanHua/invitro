@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 )
 
-func DeployFunctionsAWSLambda(functions []*common.Function) {
+func DeployFunctionsAWSLambda(functions []*common.Function, deploymentType string) {
 	provider := "aws"
 
 	// Build Go binary
@@ -37,11 +37,25 @@ func DeployFunctionsAWSLambda(functions []*common.Function) {
 					// Create serverless.yml file
 					serverless := Serverless{}
 					serverless.CreateHeader(index, provider)
-					serverless.AddPackagePattern("!**")
-					serverless.AddPackagePattern("bootstrap")
+
+					// Discern between zip and container deployment
+					var imageName string
+
+					if deploymentType == "zip" {
+						serverless.AddPackagePattern("!**")
+						serverless.AddPackagePattern("bootstrap")
+					} else if deploymentType == "container" {
+						imageName = "trace-func-go"
+						serverless.AddImageConfig(
+							imageName,
+							"./server/trace-func-go/aws",
+							"Dockerfile",
+							"linux/x86_64",
+						)
+					}
 
 					for i := 0; i < len(functionGroup); i++ {
-						serverless.AddFunctionConfig(functionGroup[i], provider)
+						serverless.AddFunctionConfig(functionGroup[i], provider, imageName)
 					}
 
 					serverless.CreateServerlessConfigFile(index)
@@ -74,7 +88,7 @@ func CleanAWSLambda(functions []*common.Function) {
 	deleteBootstrapCmd := exec.Command("rm", "./bootstrap")
 	err := deleteBootstrapCmd.Run()
 	if err != nil {
-		log.Fatalf("Failed to delete bootstrap binary: %s", err)
+		log.Warnf("Failed to delete bootstrap binary: %s", err)
 	}
 
 	functionGroups := separateFunctions(functions)
