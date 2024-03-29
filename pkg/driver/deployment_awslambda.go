@@ -3,12 +3,20 @@ package driver
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/vhive-serverless/loader/pkg/common"
+	"os/exec"
 	"sync"
 	"sync/atomic"
 )
 
 func DeployFunctionsAWSLambda(functions []*common.Function) {
 	provider := "aws"
+
+	// Build Go binary
+	buildGoCmd := exec.Command("env", "CGO_ENABLED=1", "GOARCH=amd64", "GOGCCFLAGS=-m64", "GOOS=linux", "go", "build", "-o", "./bootstrap", "./server/trace-func-go/aws/trace_func.go")
+	err := buildGoCmd.Run()
+	if err != nil {
+		log.Fatalf("Failed to build Go binary: %s", err)
+	}
 
 	functionGroups := separateFunctions(functions)
 
@@ -30,7 +38,7 @@ func DeployFunctionsAWSLambda(functions []*common.Function) {
 					serverless := Serverless{}
 					serverless.CreateHeader(index, provider)
 					serverless.AddPackagePattern("!**")
-					serverless.AddPackagePattern("./server/trace-func-go/aws/trace_func")
+					serverless.AddPackagePattern("bootstrap")
 
 					for i := 0; i < len(functionGroup); i++ {
 						serverless.AddFunctionConfig(functionGroup[i], provider)
@@ -62,6 +70,13 @@ func DeployFunctionsAWSLambda(functions []*common.Function) {
 }
 
 func CleanAWSLambda(functions []*common.Function) {
+	// Delete bootstrap binary
+	deleteBootstrapCmd := exec.Command("rm", "./bootstrap")
+	err := deleteBootstrapCmd.Run()
+	if err != nil {
+		log.Fatalf("Failed to delete bootstrap binary: %s", err)
+	}
+
 	functionGroups := separateFunctions(functions)
 
 	// Use goroutines to delete multiple serverless.yml files in parallel
