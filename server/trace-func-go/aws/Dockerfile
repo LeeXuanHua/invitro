@@ -22,12 +22,7 @@ COPY . ./
 RUN CGO_ENABLED=1 GOARCH=amd64 GOGCCFLAGS=-m64 GOOS=linux go build -mod=readonly -v -o server
 
 # Stage 1: Run #
-FROM debian:stable-slim
-
-ARG FUNC_TYPE
-ENV FUNC_TYPE_ENV=${FUNC_TYPE}
-ARG FUNC_PORT
-ENV FUNC_PORT_ENV=${FUNC_PORT}
+FROM gcr.io/distroless/base-nossl-debian12
 
 # Copy the binary to the production image from the BUILDER stage.
 COPY --from=BUILDER /app/server /server
