@@ -30,9 +30,44 @@ import (
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/vhive-serverless/loader/pkg/workload/standard"
 	"time"
 )
+
+// static double SQRTSD (double x) {
+//     double r;
+//     __asm__ ("sqrtsd %1, %0" : "=x" (r) : "x" (x));
+//     return r;
+// }
+import "C"
+
+const ExecUnit int = 1e2
+const IterationsMultiplier int = 102
+
+func takeSqrts() C.double {
+	var tmp C.double // Circumvent compiler optimizations
+	for i := 0; i < ExecUnit; i++ {
+		tmp = C.SQRTSD(C.double(10))
+	}
+	return tmp
+}
+
+func busySpin(runtimeMilli uint32) {
+	totalIterations := IterationsMultiplier * int(runtimeMilli)
+
+	for i := 0; i < totalIterations; i++ {
+		takeSqrts()
+	}
+}
+
+func TraceFunctionExecution(start time.Time, timeLeftMilliseconds uint32) {
+	timeConsumedMilliseconds := uint32(time.Since(start).Milliseconds())
+	if timeConsumedMilliseconds < timeLeftMilliseconds {
+		timeLeftMilliseconds -= timeConsumedMilliseconds
+		if timeLeftMilliseconds > 0 {
+			busySpin(timeLeftMilliseconds)
+		}
+	}
+}
 
 // Response is of type APIGatewayProxyResponse since we're leveraging the
 // AWS Lambda Proxy Request functionality (default behavior)
@@ -42,9 +77,9 @@ type Response events.APIGatewayProxyResponse
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(_ context.Context, event events.LambdaFunctionURLRequest) (Response, error) {
-	var buf bytes.Buffer
-
 	start := time.Now()
+
+	var buf bytes.Buffer
 
 	// Obtain payload from the request
 	var req struct {
@@ -57,8 +92,7 @@ func Handler(_ context.Context, event events.LambdaFunctionURLRequest) (Response
 		return Response{StatusCode: 400}, err
 	}
 
-	standard.IterationsMultiplier = 102 // Cloudlab xl170 benchmark @ 1 second function execution time
-	_ = standard.TraceFunctionExecution(start, req.RuntimeInMilliSec)
+	TraceFunctionExecution(start, req.RuntimeInMilliSec)
 
 	body, err := json.Marshal(map[string]interface{}{
 		"DurationInMicroSec": uint32(time.Since(start).Microseconds()),
