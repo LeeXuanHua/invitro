@@ -12,7 +12,7 @@ func DeployFunctionsAWSLambda(functions []*common.Function, deploymentType strin
 	provider := "aws"
 
 	// Build Go binary
-	buildGoCmd := exec.Command("env", "CGO_ENABLED=1", "GOARCH=amd64", "GOGCCFLAGS=-m64", "GOOS=linux", "go", "build", "-o", "./bootstrap", "./server/trace-func-go/aws/trace_func.go")
+	buildGoCmd := exec.Command("env", "CGO_ENABLED=1", "GOARCH=amd64", "GOGCCFLAGS=-m64", "GOOS=linux", "go", "build", " -tags", "lambda.norpc", "-o", "./bootstrap", "./server/trace-func-go/aws/trace_func.go")
 	err := buildGoCmd.Run()
 	if err != nil {
 		log.Fatalf("Failed to build Go binary: %s", err)

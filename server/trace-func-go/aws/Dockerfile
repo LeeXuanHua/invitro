@@ -19,7 +19,7 @@ COPY . ./
 # -mod=readonly: ensures immutable go.mod and go.sum in container builds.
 # CGO_ENABLED=1: uses common libraries found on most major OS distributions.
 # GOARCH=amd64 GOGCCFLAGS=-m64: specifies x86, 64-bit GCC.
-RUN CGO_ENABLED=1 GOARCH=amd64 GOGCCFLAGS=-m64 GOOS=linux go build -mod=readonly -v -o server
+RUN CGO_ENABLED=1 GOARCH=amd64 GOGCCFLAGS=-m64 GOOS=linux go build -tags lambda.norpc -mod=readonly -v -o server
 
 # Stage 1: Run #
 FROM alpine:3.16
