@@ -22,7 +22,10 @@ COPY . ./
 RUN CGO_ENABLED=1 GOARCH=amd64 GOGCCFLAGS=-m64 GOOS=linux go build -mod=readonly -v -o server
 
 # Stage 1: Run #
-FROM gcr.io/distroless/base-nossl-debian12
+FROM alpine:3.16
+
+# Install gcompat to run the binary on Alpine
+RUN apk add --no-cache gcompat
 
 # Copy the binary to the production image from the BUILDER stage.
 COPY --from=BUILDER /app/server /server
