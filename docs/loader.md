@@ -187,12 +187,12 @@ Setup Instructions:
 1. Sign up for a Serverless account [here](https://app.serverless.com/)
 2. Install Serverless framework via command line `npm install -g serverless` to allow our Go code to interact with the Serverless CLI framework e.g. `sls deploy`
 3. Follow their [setup guide](https://www.serverless.com/framework/docs/getting-started) to link the respective cloud providers
+4. Install AWS CLI and Docker CLI (ensure that root permission is not required for `aws` and `docker` commands)
 
 To run the default Loader:
 1. Change the `Platform` value in `cmd/config.json` to one of those specified in `docs/configuration.md`
-2. ~~Build the Go binary in Linux: `go build -v -o ./server/trace-func-go/aws/trace_func ./server/trace-func-go/aws/trace_func.go` (For Window users, please use WSL to build the binary)~~
-3. Start the experiments: `go run cmd/loader.go --config cmd/config.json --verbosity trace`
+2. Start the experiments: `go run cmd/loader.go --config cmd/config.json --verbosity trace`
 
 Note:
-- Current deployment is via zip file where the Go binary has to be built prior to running the code. For now, the Go binary has been packaged in this repo. Otherwise, refer to Step 2 above to build your custom Go binary.
+- Current deployment is via container image.
 - Refer to [Single Execution](#single-execution) section for more details on the experiment configurations.
